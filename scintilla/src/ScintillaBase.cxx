@@ -81,33 +81,32 @@ void ScintillaBase::Finalise() {
 }
 
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
-	// Make the first letter of a sentence uppercase.
-	{
-		int currentPos = sel.MainCaret();
-		bool makeUppercase = false;
-		if (currentPos == 0) {
+	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
+	bool makeUppercase = false;
+	int currentPos = sel.MainCaret();
+	if (currentPos == 0) {
+		makeUppercase = true;
+	} else {
+		char ch = pdoc->CharAt(currentPos-1);
+		if (ch == '\n') {
 			makeUppercase = true;
-		} else {
-			char ch = pdoc->CharAt(currentPos-1);
-			if (ch == '\n') {
+		} else if (ch == ' ') {
+			char ch2 = pdoc->CharAt(currentPos-2);
+			if (ch2 == '.' || ch2 == '!' || ch2 == '?') {
 				makeUppercase = true;
-			} else if (ch == ' ') {
-				char ch2 = pdoc->CharAt(currentPos-2);
-				if (ch2 == '.' || ch2 == '!' || ch2 == '?') {
-					makeUppercase = true;
-				}
 			}
 		}
-		if (makeUppercase) {
-			wchar_t wch;
-			UTF16FromUTF8(s, len, &wch, 1);
-			if (std::iswupper(wch)) {
-				wch = std::towlower(wch);
-			} else {
-				wch = std::towupper(wch);
-			}
-			UTF8FromUTF16(&wch, 1, (char*) s, len);
+	}
+	
+	if (makeUppercase) {
+		wchar_t wch;
+		UTF16FromUTF8(s, len, &wch, 1);
+		if (std::iswupper(wch)) {
+			wch = std::towlower(wch);
+		} else {
+			wch = std::towupper(wch);
 		}
+		UTF8FromUTF16(&wch, 1, (char*) s, len);
 	}
 
 	bool isFillUp = ac.Active() && ac.IsFillUpChar(*s);
