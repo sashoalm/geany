@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <cwctype>
 #include <assert.h>
 #include <ctype.h>
 
@@ -58,6 +59,7 @@
 #include "Editor.h"
 #include "AutoComplete.h"
 #include "ScintillaBase.h"
+#include "UniConversion.h"
 
 #ifdef SCI_NAMESPACE
 using namespace Scintilla;
@@ -78,7 +80,37 @@ void ScintillaBase::Finalise() {
 	popup.Destroy();
 }
 
+extern int g_bMakeUppercase;
+
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
+	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
+	bool makeUppercase = false;
+	int currentPos = sel.MainCaret();
+	if (currentPos == 0) {
+		makeUppercase = true;
+	} else {
+		char ch = pdoc->CharAt(currentPos-1);
+		if (ch == '\n') {
+			makeUppercase = true;
+		} else if (ch == ' ') {
+			char ch2 = pdoc->CharAt(currentPos-2);
+			if (ch2 == '.' || ch2 == '!' || ch2 == '?') {
+				makeUppercase = true;
+			}
+		}
+	}
+	
+	if (g_bMakeUppercase && makeUppercase) {
+		wchar_t wch;
+		UTF16FromUTF8(s, len, &wch, 1);
+		if (std::iswupper(wch)) {
+			wch = std::towlower(wch);
+		} else {
+			wch = std::towupper(wch);
+		}
+		UTF8FromUTF16(&wch, 1, (char*) s, len);
+	}
+
 	bool isFillUp = ac.Active() && ac.IsFillUpChar(*s);
 	if (!isFillUp) {
 		Editor::AddCharUTF(s, len, treatAsDBCS);
@@ -90,6 +122,12 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		if (isFillUp) {
 			Editor::AddCharUTF(s, len, treatAsDBCS);
 		}
+	}
+
+	// Add a space after a comma or a sentence-end.
+	if (g_bMakeUppercase && (*s == '.' || *s == '?' || *s == '!' || *s == ',')) {
+		char buf[] = " ";
+		AddCharUTF(buf, 1);
 	}
 }
 

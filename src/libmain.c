@@ -111,6 +111,7 @@ static gboolean print_prefix = FALSE;
 static gboolean no_plugins = FALSE;
 #endif
 static gboolean dummy = FALSE;
+int g_bMakeUppercase = FALSE;
 
 /* in alphabetical order of short options */
 static GOptionEntry entries[] =
@@ -141,6 +142,7 @@ static GOptionEntry entries[] =
 	{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose_mode, N_("Be verbose"), NULL },
 	{ "version", 'V', 0, G_OPTION_ARG_NONE, &show_version, N_("Show version and exit"), NULL },
 	{ "dummy", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_NONE, &dummy, NULL, NULL }, /* for +NNN line number arguments */
+	{ "uppercase", 'u', 0, G_OPTION_ARG_NONE, &g_bMakeUppercase, N_("Make first letter uppercase"), NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
