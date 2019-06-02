@@ -24,6 +24,5 @@
 
 int main(int argc, char **argv)
 {
-        printf("hello, world\n");
 	return main_lib(argc, argv);
 }
