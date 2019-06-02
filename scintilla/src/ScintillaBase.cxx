@@ -80,11 +80,11 @@ void ScintillaBase::Finalise() {
 	popup.Destroy();
 }
 
-extern int g_bMakeUppercase;
+extern int g_bMakeUppercaseEnabled;
 
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
 	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
-	if (g_bMakeUppercase) {
+	if (g_bMakeUppercaseEnabled) {
 		bool makeUppercase = false;
 		int currentPos = sel.MainCaret();
 		if (currentPos == 0) {
@@ -127,7 +127,7 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 	}
 
 	// Add a space after a comma or a sentence-end.
-	if (g_bMakeUppercase && (*s == '.' || *s == '?' || *s == '!' || *s == ',')) {
+	if (g_bMakeUppercaseEnabled && (*s == '.' || *s == '?' || *s == '!' || *s == ',')) {
 		char buf[] = " ";
 		AddCharUTF(buf, 1);
 	}
