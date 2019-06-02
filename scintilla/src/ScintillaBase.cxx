@@ -88,9 +88,12 @@ const char *scriptFile = "/home/sashoalm/Workspace/EmbPythonTest/main.py";
 
 struct PyEmbed_Data
 {
+    ScintillaBase *self;
     Selection *sel;
     Document *pdoc;
     char *s;
+    unsigned int len;
+    bool treatAsDBCS;
 } pyembed_data;
 
 static PyObject*
@@ -124,30 +127,23 @@ PyEmbed_SetAddedChar(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+PyEmbed_AddCharUTF_Original(PyObject *self, PyObject *args)
+{
+    pyembed_data.self->AddCharUTF_Original(pyembed_data.s, pyembed_data.len, pyembed_data.treatAsDBCS);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef EmbMethods[] = {
     {"MainCaret", PyEmbed_MainCaret, METH_VARARGS, "Return the current position of the cursor."},
     {"CharAt", PyEmbed_CharAt, METH_VARARGS, "Get character at position."},
     {"AddedChar", PyEmbed_AddedChar, METH_VARARGS, "Get the character we are about to add."},
     {"SetAddedChar", PyEmbed_SetAddedChar, METH_VARARGS, "Set the character we are about to add."},
+    {"AddCharUTF_Original", PyEmbed_AddCharUTF_Original, METH_VARARGS, "Call the original code to add a char."},
     {NULL, NULL, 0, NULL}
 };
 
-void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
-	static bool initialized = false;
-	if (!initialized) {
-		Py_Initialize();
-		Py_InitModule("emb", EmbMethods);
-		initialized = true;
-	}
-    
-	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
-	if (g_bMakeUppercaseEnabled) {
-		pyembed_data.pdoc = pdoc;
-		pyembed_data.sel = &sel;
-		pyembed_data.s = (char*) s;
-		PyRun_SimpleFile(fopen(scriptFile, "r"), scriptFile);
-	}
-
+void ScintillaBase::AddCharUTF_Original(const char *s, unsigned int len, bool treatAsDBCS) {
 	bool isFillUp = ac.Active() && ac.IsFillUpChar(*s);
 	if (!isFillUp) {
 		Editor::AddCharUTF(s, len, treatAsDBCS);
@@ -160,11 +156,26 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 			Editor::AddCharUTF(s, len, treatAsDBCS);
 		}
 	}
+}
 
-	// Add a space after a comma or a sentence-end.
-	if (g_bMakeUppercaseEnabled && (*s == '.' || *s == '?' || *s == '!' || *s == ',')) {
-		char buf[] = " ";
-		AddCharUTF(buf, 1);
+void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
+	if (g_bMakeUppercaseEnabled) {
+		static bool initialized = false;
+		if (!initialized) {
+			Py_Initialize();
+			Py_InitModule("emb", EmbMethods);
+			initialized = true;
+		}
+		
+		pyembed_data.self = this;
+		pyembed_data.pdoc = pdoc;
+		pyembed_data.sel = &sel;
+		pyembed_data.s = (char*) s;
+		pyembed_data.len = len;
+		pyembed_data.treatAsDBCS = treatAsDBCS;
+		PyRun_SimpleFile(fopen(scriptFile, "r"), scriptFile);
+	} else {
+		AddCharUTF_Original(s, len, treatAsDBCS);
 	}
 }
 
