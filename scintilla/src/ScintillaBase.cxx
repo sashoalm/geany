@@ -82,9 +82,7 @@ void ScintillaBase::Finalise() {
 	popup.Destroy();
 }
 
-extern int g_bMakeUppercaseEnabled;
-
-const char *scriptFile = "/home/sashoalm/Workspace/geany/src/uppercase.py";
+extern char *g_strPythonScriptFile;
 
 struct PyEmbed_Data
 {
@@ -170,7 +168,7 @@ void ScintillaBase::AddCharUTF_Original(const char *s, unsigned int len, bool tr
 }
 
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
-	if (g_bMakeUppercaseEnabled) {
+	if (g_strPythonScriptFile) {
 		static bool initialized = false;
 		if (!initialized) {
 			Py_Initialize();
@@ -184,7 +182,7 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		pyembed_data.s = (char*) s;
 		pyembed_data.len = len;
 		pyembed_data.treatAsDBCS = treatAsDBCS;
-		PyRun_SimpleFile(fopen(scriptFile, "r"), scriptFile);
+		PyRun_SimpleFile(fopen(g_strPythonScriptFile, "r"), g_strPythonScriptFile);
 	} else {
 		AddCharUTF_Original(s, len, treatAsDBCS);
 	}
