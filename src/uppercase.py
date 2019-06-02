@@ -1,4 +1,5 @@
 import emb
+
 makeUppercase = False
 currentPos = emb.MainCaret()
 if currentPos == 0:
@@ -20,3 +21,9 @@ if makeUppercase:
         emb.SetAddedChar(wch.upper())
 
 emb.AddCharUTF_Original()
+
+# Add a space after a comma or a sentence-end.
+wch = emb.AddedChar()
+print wch
+if wch == '.' or wch == '?' or wch == '!' or wch == ',':
+    emb.AddCharUTF(' ')

@@ -134,12 +134,23 @@ PyEmbed_AddCharUTF_Original(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
+{
+    char *s;
+    if(!PyArg_ParseTuple(args, "s", &s))
+        return NULL;
+    pyembed_data.self->AddCharUTF_Original(s, strlen(s));
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef EmbMethods[] = {
     {"MainCaret", PyEmbed_MainCaret, METH_VARARGS, "Return the current position of the cursor."},
     {"CharAt", PyEmbed_CharAt, METH_VARARGS, "Get character at position."},
     {"AddedChar", PyEmbed_AddedChar, METH_VARARGS, "Get the character we are about to add."},
     {"SetAddedChar", PyEmbed_SetAddedChar, METH_VARARGS, "Set the character we are about to add."},
     {"AddCharUTF_Original", PyEmbed_AddCharUTF_Original, METH_VARARGS, "Call the original code to add a char."},
+    {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character. Note that this might call the Python script again."},
     {NULL, NULL, 0, NULL}
 };
 
