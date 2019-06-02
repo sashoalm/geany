@@ -60,6 +60,8 @@
 #include "AutoComplete.h"
 #include "ScintillaBase.h"
 #include "UniConversion.h"
+#include <Python.h>
+#include <python3.6m/object.h>
 
 #ifdef SCI_NAMESPACE
 using namespace Scintilla;
@@ -82,35 +84,68 @@ void ScintillaBase::Finalise() {
 
 extern int g_bMakeUppercaseEnabled;
 
+const char *scriptFile = "/home/sashoalm/Workspace/EmbPythonTest/main.py";
+
+struct PyEmbed_Data
+{
+    Selection *sel;
+    Document *pdoc;
+    char *s;
+} pyembed_data;
+
+static PyObject*
+PyEmbed_MainCaret(PyObject *self, PyObject *args)
+{
+    return Py_BuildValue("i", pyembed_data.sel->MainCaret());
+}
+
+static PyObject*
+PyEmbed_CharAt(PyObject *self, PyObject *args)
+{
+    int pos;
+    if(!PyArg_ParseTuple(args, "i", &pos))
+        return NULL;
+    return Py_BuildValue("c", pyembed_data.pdoc->CharAt(pos));
+}
+
+static PyObject*
+PyEmbed_AddedChar(PyObject *self, PyObject *args)
+{
+    return Py_BuildValue("s", pyembed_data.s);
+}
+
+static PyObject*
+PyEmbed_SetAddedChar(PyObject *self, PyObject *args)
+{
+    char *s2;
+    if(!PyArg_ParseTuple(args, "s", &s2))
+        return NULL;
+    strncpy(pyembed_data.s, s2, strlen(pyembed_data.s));
+    return Py_None;
+}
+
+static PyMethodDef EmbMethods[] = {
+    {"MainCaret", PyEmbed_MainCaret, METH_VARARGS, "Return the current position of the cursor."},
+    {"CharAt", PyEmbed_CharAt, METH_VARARGS, "Get character at position."},
+    {"AddedChar", PyEmbed_AddedChar, METH_VARARGS, "Get the character we are about to add."},
+    {"SetAddedChar", PyEmbed_SetAddedChar, METH_VARARGS, "Set the character we are about to add."},
+    {NULL, NULL, 0, NULL}
+};
+
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
+	static bool initialized = false;
+	if (!initialized) {
+		Py_Initialize();
+		Py_InitModule("emb", EmbMethods);
+		initialized = true;
+	}
+    
 	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
 	if (g_bMakeUppercaseEnabled) {
-		bool makeUppercase = false;
-		int currentPos = sel.MainCaret();
-		if (currentPos == 0) {
-			makeUppercase = true;
-		} else {
-			char ch = pdoc->CharAt(currentPos-1);
-			if (ch == '\n') {
-				makeUppercase = true;
-			} else if (ch == ' ') {
-				char ch2 = pdoc->CharAt(currentPos-2);
-				if (ch2 == '.' || ch2 == '!' || ch2 == '?') {
-					makeUppercase = true;
-				}
-			}
-		}
-		
-		if (makeUppercase) {
-			wchar_t wch;
-			UTF16FromUTF8(s, len, &wch, 1);
-			if (std::iswupper(wch)) {
-				wch = std::towlower(wch);
-			} else {
-				wch = std::towupper(wch);
-			}
-			UTF8FromUTF16(&wch, 1, (char*) s, len);
-		}
+		pyembed_data.pdoc = pdoc;
+		pyembed_data.sel = &sel;
+		pyembed_data.s = (char*) s;
+		PyRun_SimpleFile(fopen(scriptFile, "r"), scriptFile);
 	}
 
 	bool isFillUp = ac.Active() && ac.IsFillUpChar(*s);
