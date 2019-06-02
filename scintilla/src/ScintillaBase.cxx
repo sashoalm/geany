@@ -84,7 +84,7 @@ void ScintillaBase::Finalise() {
 
 extern int g_bMakeUppercaseEnabled;
 
-const char *scriptFile = "/home/sashoalm/Workspace/EmbPythonTest/main.py";
+const char *scriptFile = "/home/sashoalm/Workspace/geany/src/uppercase.py";
 
 struct PyEmbed_Data
 {
