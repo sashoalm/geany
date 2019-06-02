@@ -121,7 +121,7 @@ PyEmbed_SetAddedChar(PyObject *self, PyObject *args)
     if(!PyArg_ParseTuple(args, "s", &s2))
         return NULL;
     strncpy(pyembed_data.s, s2, strlen(pyembed_data.s));
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyMethodDef EmbMethods[] = {
