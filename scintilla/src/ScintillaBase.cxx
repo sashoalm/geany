@@ -170,9 +170,14 @@ void ScintillaBase::AddCharUTF_Original(const char *s, unsigned int len, bool tr
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
 	if (g_strPythonScriptFile) {
 		static bool initialized = false;
+		static PyObject *func = 0;
 		if (!initialized) {
 			Py_Initialize();
 			Py_InitModule("emb", EmbMethods);
+			PyRun_SimpleFile(fopen(g_strPythonScriptFile, "r"), g_strPythonScriptFile);
+			PyObject *moduleMainString = PyString_FromString("__main__");
+			PyObject *moduleMain = PyImport_Import(moduleMainString);
+			func = PyObject_GetAttrString(moduleMain, "onKeyPressed");
 			initialized = true;
 		}
 		
@@ -182,7 +187,7 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		pyembed_data.s = (char*) s;
 		pyembed_data.len = len;
 		pyembed_data.treatAsDBCS = treatAsDBCS;
-		PyRun_SimpleFile(fopen(g_strPythonScriptFile, "r"), g_strPythonScriptFile);
+		PyObject_CallObject(func, 0);
 	} else {
 		AddCharUTF_Original(s, len, treatAsDBCS);
 	}
