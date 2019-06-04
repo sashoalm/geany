@@ -87,50 +87,7 @@ extern char *g_strPythonScriptFile;
 struct PyEmbed_Data
 {
     ScintillaBase *self;
-    Selection *sel;
-    Document *pdoc;
-    char *s;
-    unsigned int len;
-    bool treatAsDBCS;
 } pyembed_data;
-
-static PyObject*
-PyEmbed_MainCaret(PyObject *self, PyObject *args)
-{
-    return Py_BuildValue("i", pyembed_data.sel->MainCaret());
-}
-
-static PyObject*
-PyEmbed_CharAt(PyObject *self, PyObject *args)
-{
-    int pos;
-    if(!PyArg_ParseTuple(args, "i", &pos))
-        return NULL;
-    return Py_BuildValue("c", pyembed_data.pdoc->CharAt(pos));
-}
-
-static PyObject*
-PyEmbed_AddedChar(PyObject *self, PyObject *args)
-{
-    return Py_BuildValue("s", pyembed_data.s);
-}
-
-static PyObject*
-PyEmbed_SetAddedChar(PyObject *self, PyObject *args)
-{
-    char *s2;
-    if(!PyArg_ParseTuple(args, "s", &s2))
-        return NULL;
-    strncpy(pyembed_data.s, s2, strlen(pyembed_data.s));
-    Py_RETURN_NONE;
-}
-
-static PyObject*
-PyEmbed_AddCharUTF_Original(PyObject *self, PyObject *args)
-{
-    pyembed_data.self->AddCharUTF_Original(pyembed_data.s, pyembed_data.len, pyembed_data.treatAsDBCS);
-    Py_RETURN_NONE;
-}
 
 static PyObject*
 PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
@@ -143,11 +100,6 @@ PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef EmbMethods[] = {
-    {"MainCaret", PyEmbed_MainCaret, METH_VARARGS, "Return the current position of the cursor."},
-    {"CharAt", PyEmbed_CharAt, METH_VARARGS, "Get character at position."},
-    {"AddedChar", PyEmbed_AddedChar, METH_VARARGS, "Get the character we are about to add."},
-    {"SetAddedChar", PyEmbed_SetAddedChar, METH_VARARGS, "Set the character we are about to add."},
-    {"AddCharUTF_Original", PyEmbed_AddCharUTF_Original, METH_VARARGS, "Call the original code to add a char."},
     {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character. Note that this might call the Python script again."},
     {NULL, NULL, 0, NULL}
 };
@@ -182,11 +134,6 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		}
 		
 		pyembed_data.self = this;
-		pyembed_data.pdoc = pdoc;
-		pyembed_data.sel = &sel;
-		pyembed_data.s = (char*) s;
-		pyembed_data.len = len;
-		pyembed_data.treatAsDBCS = treatAsDBCS;
 		
 		char buffer[31];
 		int pos = pdoc->NextPosition(sel.MainCaret() - 30, 1);
