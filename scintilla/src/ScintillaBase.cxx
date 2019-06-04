@@ -138,7 +138,7 @@ PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
     char *s;
     if(!PyArg_ParseTuple(args, "s", &s))
         return NULL;
-    pyembed_data.self->AddCharUTF_Original(s, strlen(s));
+    pyembed_data.self->AddCharUTF_Original(s, strlen(s), true);
     Py_RETURN_NONE;
 }
 
@@ -187,7 +187,14 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		pyembed_data.s = (char*) s;
 		pyembed_data.len = len;
 		pyembed_data.treatAsDBCS = treatAsDBCS;
-		PyObject_CallObject(func, 0);
+		
+		char buffer[31];
+		int pos = pdoc->NextPosition(sel.MainCaret() - 30, 1);
+		strncpy(buffer, pdoc->BufferPointer() + pos, sel.MainCaret() - pos);
+		buffer[sel.MainCaret() - pos] = 0;
+		PyObject *args = PyTuple_Pack(2, PyString_FromString(buffer), PyString_FromString(s));
+
+		PyObject_CallObject(func, args);
 	} else {
 		AddCharUTF_Original(s, len, treatAsDBCS);
 	}

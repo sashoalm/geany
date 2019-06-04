@@ -1,29 +1,24 @@
 import emb
 
-def onKeyPressed():
-        makeUppercase = False
-        currentPos = emb.MainCaret()
-        if currentPos == 0:
-                makeUppercase = True
-        else:
-                ch = emb.CharAt(currentPos-1)
-                if ch == '\n':
-                        makeUppercase = True
-                elif ch == ' ':
-                        ch2 = emb.CharAt(currentPos-2)
-                        if ch2 == '.' or ch2 == '!' or ch2 == '?':
-                                makeUppercase = True
+def onKeyPressed(context, s):
+        makeUppercase = (
+                context == ''
+                or context.endswith('\n')
+                or context.endswith('. ')
+                or context.endswith('! ')
+                or context.endswith('? ')
+                )
 
         if makeUppercase:
-            wch = emb.AddedChar()
-            if wch.isupper():
-                emb.SetAddedChar(wch.lower())
-            if wch.islower():
-                emb.SetAddedChar(wch.upper())
+            s = s.decode('utf-8')
+            if s.isupper():
+                s = s.lower()
+            if s.islower():
+                s = s.upper()
+            s = s.encode('utf-8')
 
-        emb.AddCharUTF_Original()
+        emb.AddCharUTF(s)
 
         # Add a space after a comma or a sentence-end.
-        wch = emb.AddedChar()
-        if wch == '.' or wch == '?' or wch == '!' or wch == ',':
+        if s == '.' or s == '?' or s == '!' or s == ',':
             emb.AddCharUTF(' ')
