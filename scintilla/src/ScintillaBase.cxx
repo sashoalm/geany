@@ -130,6 +130,10 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 			PyObject *moduleMainString = PyString_FromString("__main__");
 			PyObject *moduleMain = PyImport_Import(moduleMainString);
 			onKeyPressed = PyObject_GetAttrString(moduleMain, "onKeyPressed");
+			if (!onKeyPressed) {
+			    printf("Python script is missing the onKeyPressed() function, exiting...\n");
+			    exit(1);
+			}
 			initialized = true;
 		}
 		
