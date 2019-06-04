@@ -1,5 +1,8 @@
 import emb
 
+def contextLen():
+        return 10
+
 def onKeyPressed(context, s):
         makeUppercase = (
                 context == ''

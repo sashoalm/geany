@@ -123,24 +123,36 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 	if (g_strPythonScriptFile) {
 		static bool initialized = false;
 		static PyObject *onKeyPressed = 0;
+		static int contextLen = 0;
 		if (!initialized) {
 			Py_Initialize();
 			Py_InitModule("emb", EmbMethods);
 			PyRun_SimpleFile(fopen(g_strPythonScriptFile, "r"), g_strPythonScriptFile);
 			PyObject *moduleMainString = PyString_FromString("__main__");
 			PyObject *moduleMain = PyImport_Import(moduleMainString);
+			
 			onKeyPressed = PyObject_GetAttrString(moduleMain, "onKeyPressed");
 			if (!onKeyPressed) {
 			    printf("Python script is missing the onKeyPressed() function, exiting...\n");
 			    exit(1);
 			}
+
+			PyObject *contextLenFunc = PyObject_GetAttrString(moduleMain, "contextLen");
+			if (!contextLenFunc) {
+			    printf("Python script is missing contextLen() function, exiting...\n");
+			    exit(1);
+			}
+			
+			contextLen = PyInt_AS_LONG(PyObject_CallObject(contextLenFunc, 0));
+			contextLen = std::min(contextLen, 100);
+			
 			initialized = true;
 		}
 		
 		pyembed_data.self = this;
 		
-		char buffer[31];
-		int pos = pdoc->NextPosition(sel.MainCaret() - 30, 1);
+		char buffer[110];
+		int pos = pdoc->NextPosition(sel.MainCaret() - contextLen, 1);
 		strncpy(buffer, pdoc->BufferPointer() + pos, sel.MainCaret() - pos);
 		buffer[sel.MainCaret() - pos] = 0;
 		PyObject *args = PyTuple_Pack(2, PyString_FromString(buffer), PyString_FromString(s));
