@@ -155,9 +155,13 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 		int pos = pdoc->NextPosition(sel.MainCaret() - contextLen, 1);
 		strncpy(buffer, pdoc->BufferPointer() + pos, sel.MainCaret() - pos);
 		buffer[sel.MainCaret() - pos] = 0;
-		PyObject *args = PyTuple_Pack(2, PyString_FromString(buffer), PyString_FromString(s));
-
+		PyObject *bufferObject = PyString_FromString(buffer);
+		PyObject *sObject = PyString_FromString(s);
+		PyObject *args = PyTuple_Pack(2, bufferObject, sObject);
 		PyObject_CallObject(onKeyPressed, args);
+		Py_DECREF(args);
+		Py_DECREF(bufferObject);
+		Py_DECREF(sObject);
 	} else {
 		AddCharUTF_Original(s, len, treatAsDBCS);
 	}
