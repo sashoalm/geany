@@ -147,6 +147,7 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 			// python functions.
 			PyObject *moduleMainString = PyString_FromString("__main__");
 			PyObject *moduleMain = PyImport_Import(moduleMainString);
+			Py_DECREF(moduleMainString);
 			
 			// Get a reference to onKeyPressed().
 			onKeyPressed = PyObject_GetAttrString(moduleMain, "onKeyPressed");
@@ -162,11 +163,15 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 			    exit(1);
 			}
 			
+			Py_DECREF(moduleMain);
+			
 			// Get the context length - we allow the python script to set it
 			// so it can be more flexible in case it needs more context to do fancier things.
-			contextLen = PyInt_AS_LONG(PyObject_CallObject(contextLenFunc, 0));
+			PyObject *contextLenResult = PyObject_CallObject(contextLenFunc, 0);
+			contextLen = PyInt_AS_LONG(contextLenResult);
 			contextLen = std::min(contextLen, 100);
-			
+			Py_DECREF(contextLenResult);
+
 			initialized = true;
 		}
 		
