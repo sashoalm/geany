@@ -12,7 +12,7 @@ def onKeyPressed(context, s):
                 or context.endswith('? ')
                 )
 
-        if makeUppercase:
+        if makeUppercase and not context.endswith('i.e. ') and not context.endswith('e.g. '):
             s = s.decode('utf-8')
             if s.isupper():
                 s = s.lower()
@@ -23,5 +23,5 @@ def onKeyPressed(context, s):
         emb.AddCharUTF(s)
 
         # Add a space after a comma or a sentence-end.
-        if s == '.' or s == '?' or s == '!' or s == ',':
+        if (s == '.' and not context.endswith(' i') and not context.endswith(' e')) or s == '?' or s == '!' or s == ',':
             emb.AddCharUTF(' ')
