@@ -100,7 +100,7 @@ PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef EmbMethods[] = {
-    {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character. Note that this might call the Python script again."},
+    {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character."},
     {NULL, NULL, 0, NULL}
 };
 
