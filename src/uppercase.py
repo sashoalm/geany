@@ -20,6 +20,11 @@ def onKeyPressed(context, s):
                 s = s.upper()
             s = s.encode('utf-8')
 
+        # Make I uppercase.
+        if context.endswith(' i') and s in [' ', "'"]:
+            emb.DelCharBack()
+            emb.AddCharUTF('I')
+
         emb.AddCharUTF(s)
 
         # Add a space after a comma or a sentence-end.

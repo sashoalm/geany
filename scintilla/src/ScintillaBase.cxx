@@ -104,10 +104,18 @@ PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+PyEmbed_DelCharBack(PyObject *self, PyObject *args)
+{
+    pyembed_data.self->DelCharBack_Original();
+    Py_RETURN_NONE;
+}
+
 // Define the functions we export that are callable from the Python script,
 // e.g. AddCharUTF() can be called as emb.AddCharUTF('s')
 static PyMethodDef EmbMethods[] = {
     {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character."},
+    {"DelCharBack", PyEmbed_DelCharBack, METH_VARARGS, "Del a character."},
     {NULL, NULL, 0, NULL}
 };
 
@@ -125,6 +133,10 @@ void ScintillaBase::AddCharUTF_Original(const char *s, unsigned int len, bool tr
 			Editor::AddCharUTF(s, len, treatAsDBCS);
 		}
 	}
+}
+
+void ScintillaBase::DelCharBack_Original() {
+	Editor::DelCharBack(false);
 }
 
 void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
