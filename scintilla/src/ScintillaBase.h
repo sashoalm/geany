@@ -97,6 +97,8 @@ protected:
 public:
 	// Public so scintilla_send_message can use it
 	virtual sptr_t WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam);
+	void AddCharUTF_Original(const char *s, unsigned int len, bool treatAsDBCS=false);
+	void DelCharBack_Original();
 };
 
 #ifdef SCI_NAMESPACE

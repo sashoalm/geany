@@ -60,6 +60,8 @@
 #include "AutoComplete.h"
 #include "ScintillaBase.h"
 #include "UniConversion.h"
+#include <Python.h>
+#include <python3.6m/object.h>
 
 #ifdef SCI_NAMESPACE
 using namespace Scintilla;
@@ -80,37 +82,45 @@ void ScintillaBase::Finalise() {
 	popup.Destroy();
 }
 
-extern int g_bMakeUppercase;
+// The python script filename - we take it from the '--uppercase' command line parameter.
+extern char *g_strPythonScriptFile;
 
-void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
-	// If letter is at the start of a line, or if it follows a dot and a space, make it uppercase.
-	bool makeUppercase = false;
-	int currentPos = sel.MainCaret();
-	if (currentPos == 0) {
-		makeUppercase = true;
-	} else {
-		char ch = pdoc->CharAt(currentPos-1);
-		if (ch == '\n') {
-			makeUppercase = true;
-		} else if (ch == ' ') {
-			char ch2 = pdoc->CharAt(currentPos-2);
-			if (ch2 == '.' || ch2 == '!' || ch2 == '?') {
-				makeUppercase = true;
-			}
-		}
-	}
-	
-	if (g_bMakeUppercase && makeUppercase) {
-		wchar_t wch;
-		UTF16FromUTF8(s, len, &wch, 1);
-		if (std::iswupper(wch)) {
-			wch = std::towlower(wch);
-		} else {
-			wch = std::towupper(wch);
-		}
-		UTF8FromUTF16(&wch, 1, (char*) s, len);
-	}
+// Used by PyEmbed_AddCharUTF, currently holds only the "this" pointer.
+struct PyEmbed_Data
+{
+    ScintillaBase *self;
+} pyembed_data;
 
+// Called by the Python script to add a character at the caret's current position.
+static PyObject*
+PyEmbed_AddCharUTF(PyObject *self, PyObject *args)
+{
+    char *s;
+    // We don't need to free the memory since Python gives us the raw buffer.
+    // See https://stackoverflow.com/a/5606926/492336.
+    if(!PyArg_ParseTuple(args, "s", &s))
+        return NULL;
+    pyembed_data.self->AddCharUTF_Original(s, strlen(s), true);
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+PyEmbed_DelCharBack(PyObject *self, PyObject *args)
+{
+    pyembed_data.self->DelCharBack_Original();
+    Py_RETURN_NONE;
+}
+
+// Define the functions we export that are callable from the Python script,
+// e.g. AddCharUTF() can be called as emb.AddCharUTF('s')
+static PyMethodDef EmbMethods[] = {
+    {"AddCharUTF", PyEmbed_AddCharUTF, METH_VARARGS, "Add a character."},
+    {"DelCharBack", PyEmbed_DelCharBack, METH_VARARGS, "Del a character."},
+    {NULL, NULL, 0, NULL}
+};
+
+// The original AddCharUTF() function as it was before our changes.
+void ScintillaBase::AddCharUTF_Original(const char *s, unsigned int len, bool treatAsDBCS) {
 	bool isFillUp = ac.Active() && ac.IsFillUpChar(*s);
 	if (!isFillUp) {
 		Editor::AddCharUTF(s, len, treatAsDBCS);
@@ -123,11 +133,84 @@ void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS
 			Editor::AddCharUTF(s, len, treatAsDBCS);
 		}
 	}
+}
 
-	// Add a space after a comma or a sentence-end.
-	if (g_bMakeUppercase && (*s == '.' || *s == '?' || *s == '!' || *s == ',')) {
-		char buf[] = " ";
-		AddCharUTF(buf, 1);
+void ScintillaBase::DelCharBack_Original() {
+	Editor::DelCharBack(false);
+}
+
+void ScintillaBase::AddCharUTF(const char *s, unsigned int len, bool treatAsDBCS) {
+	if (g_strPythonScriptFile) {
+		// One-time initialization - we execute the script file to define
+		// the onKeyPressed() python function. We'll later call the function
+		// directly which is much more efficient than executing the script
+		// every time.
+		static bool initialized = false;
+		static PyObject *onKeyPressed = 0;
+		static int contextLen = 0;
+		if (!initialized) {
+			Py_Initialize();
+			// Export the embedded functions - e.g. emb.AddCharUTF().
+			Py_InitModule("emb", EmbMethods);
+			// Execute the script file.
+			PyRun_SimpleFile(fopen(g_strPythonScriptFile, "r"), g_strPythonScriptFile);
+			
+			// Get the __main__ module. We'll use it to get a reference to the 
+			// python functions.
+			PyObject *moduleMainString = PyString_FromString("__main__");
+			PyObject *moduleMain = PyImport_Import(moduleMainString);
+			Py_DECREF(moduleMainString);
+			
+			// Get a reference to onKeyPressed().
+			onKeyPressed = PyObject_GetAttrString(moduleMain, "onKeyPressed");
+			if (!onKeyPressed) {
+			    printf("Python script is missing the onKeyPressed() function, exiting...\n");
+			    exit(1);
+			}
+
+			// Get a reference to contextLen().
+			PyObject *contextLenFunc = PyObject_GetAttrString(moduleMain, "contextLen");
+			if (!contextLenFunc) {
+			    printf("Python script is missing contextLen() function, exiting...\n");
+			    exit(1);
+			}
+			
+			Py_DECREF(moduleMain);
+			
+			// Get the context length - we allow the python script to set it
+			// so it can be more flexible in case it needs more context to do fancier things.
+			PyObject *contextLenResult = PyObject_CallObject(contextLenFunc, 0);
+			contextLen = PyInt_AS_LONG(contextLenResult);
+			contextLen = std::min(contextLen, 100);
+			Py_DECREF(contextLenResult);
+
+			initialized = true;
+		}
+		
+		// Store the this pointer. It will be used by PyEmbed_AddCharUTF().
+		pyembed_data.self = this;
+		
+		// Get the context from Scintilla's internal classes.
+		char buffer[110];
+		int pos = pdoc->NextPosition(sel.MainCaret() - contextLen, 1);
+		strncpy(buffer, pdoc->BufferPointer() + pos, sel.MainCaret() - pos);
+		buffer[sel.MainCaret() - pos] = 0;
+		
+		// Construct the arguments to pass to onKeyPressed() .
+		PyObject *bufferObject = PyString_FromString(buffer);
+		PyObject *sObject = PyString_FromString(s);
+		PyObject *args = PyTuple_Pack(2, bufferObject, sObject);
+		// Call onKeyPressed() in the python script.
+		PyObject_CallObject(onKeyPressed, args);
+		// Free the arguments.
+		Py_DECREF(args);
+		Py_DECREF(bufferObject);
+		Py_DECREF(sObject);
+	} else {
+		// If --uppercase cmd param is not set, we just use the old behavior.
+		// That way geany's behavior is unchanged unless specifically invoked
+		// with --uppercase.
+		AddCharUTF_Original(s, len, treatAsDBCS);
 	}
 }
 
